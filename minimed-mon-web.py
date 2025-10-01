@@ -519,8 +519,13 @@ if __name__ == '__main__':
     data_thread = threading.Thread(target=get_pump_data, daemon=True)
     data_thread.start()
     
-   # Run the Flask app (usará el puerto asignado por Render o 5001 por defecto)
-log.info(f"Iniciando servidor Flask en puerto {port}...")
+  # Define el puerto usando la variable de entorno de Render (o 5001 por defecto)
 port = int(os.environ.get("PORT", 5001))
+
+# Log de inicio
+log.info(f"Iniciando servidor Flask en puerto {port}...")
+
+# Ejecutar la app
 app.run(host='0.0.0.0', port=port, debug=False, use_reloader=False)
+
     
