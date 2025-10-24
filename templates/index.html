@@ -160,15 +160,10 @@
             background-repeat: no-repeat;
             background-position: center;
         }
-        .drop-white {
-            background-image: url('/static/res/mm_drop_white.png');
-        }
-        .drop-red {
-            background-image: url('/static/res/mm_drop_red.png');
-        }
-        .drop-unk {
-            background-image: url('/static/res/mm_drop_unk.png');
-        }
+        .drop-white { background-image: url('/static/res/mm_drop_white.png'); }
+        .drop-red { background-image: url('/static/res/mm_drop_red.png'); }
+        .drop-unk { background-image: url('/static/res/mm_drop_unk.png'); }
+
         .slider-container {
             width: 100vw;
             height: 240px;
@@ -220,47 +215,10 @@
             background-color: rgba(255, 255, 255, 0.3);
             transition: background-color 0.3s ease;
         }
-        .dot.active {
-            background-color: #fff;
-        }
-        #graph {
-            width: 100%;
-            height: 100%;
-        }
-        .graph-controls {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            width: 100%;
-            padding: 0 10px;
-        }
-        .period-button {
-            background: none;
-            border: none;
-            color: #fff;
-            font-size: 1.5rem;
-            cursor: pointer;
-            padding: 5px 10px;
-            opacity: 0.7;
-            transition: opacity 0.3s ease;
-        }
-        .period-button:hover {
-            opacity: 1;
-        }
-        .period-button:disabled {
-            opacity: 0.3;
-            cursor: not-allowed;
-        }
-        .period-info {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            color: #fff;
-        }
-        .period-info span {
-            font-size: 0.9rem;
-            margin: 2px 0;
-        }
+        .dot.active { background-color: #fff; }
+
+        #graph { width: 100%; height: 100%; }
+
         .graph-info {
             display: flex;
             flex-direction: column;
@@ -305,6 +263,9 @@
                         </div>
                     </div>
 
+                    <!-- Banner de estado (se muestra/oculta vía JS) -->
+                    <img id="pumpBanner" style="position:absolute; left:40px; top:145px; width:240px; height:auto; display:none;" alt="Pump banner">
+
                     <div class="insulin-container">
                         <div class="insulin-value" id="activeInsulin">1.5 U</div>
                         <div class="insulin-label">Insulina Activa</div>
@@ -337,8 +298,10 @@
     <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation"></script>
     <script>
-        // Registrar el plugin de anotaciones
-        Chart.register('chartjs-plugin-annotation');
+        // Registrar el plugin de anotaciones (modo CDN)
+        if (window['chartjs-plugin-annotation']) {
+            Chart.register(window['chartjs-plugin-annotation']);
+        }
 
         let allGlucoseData = [];
         let patientMarkers = [];
@@ -349,8 +312,7 @@
         // Inicializar el gráfico
         function initializeChart() {
             const ctx = document.getElementById('graph').getContext('2d');
-            // console.log('Inicializando gráfico');
-            
+
             glucoseChart = new Chart(ctx, {
                 type: 'line',
                 data: {
@@ -373,14 +335,10 @@
                         y: {
                             min: 40,
                             max: 250,
-                            grid: {
-                                color: 'rgba(255, 255, 255, 0.1)'
-                            },
+                            grid: { color: 'rgba(255, 255, 255, 0.1)' },
                             ticks: {
                                 color: '#fff',
-                                font: {
-                                    size: 12
-                                },
+                                font: { size: 12 },
                                 callback: function(value) {
                                     return [50, 100, 150, 200, 250].includes(value) ? value : '';
                                 },
@@ -394,7 +352,7 @@
                                     const label = context.tick?.label;
                                     if (!label) return 'rgba(255, 255, 255, 0.05)';
                                     const [hour, minute] = (label || '').split(':').map(Number);
-                                    return minute >= 58 || minute <= 2 ? 'rgba(255, 255, 255, 0.1)' : 'rgba(255, 255, 255, 0.05)';
+                                    return (minute >= 58 || minute <= 2) ? 'rgba(255, 255, 255, 0.1)' : 'rgba(255, 255, 255, 0.05)';
                                 },
                                 drawOnChartArea: true
                             },
@@ -402,21 +360,12 @@
                                 color: '#fff',
                                 maxRotation: 0,
                                 autoSkip: false,
-                                font: {
-                                    size: 12
-                                },
-                                callback: function(value, index, ticks) {
+                                font: { size: 12 },
+                                callback: function(value) {
                                     const label = this.getLabelForValue(value);
                                     if (!label || typeof label !== 'string') return '';
-                                    
                                     const [hour, minute] = label.split(':').map(Number);
-                                    
-                                    // Mostrar la hora si estamos cerca del cambio de hora (±2 minutos)
-                                    if (minute >= 58 || minute <= 2) {
-                                        return hour + ':00';
-                                    }
-                                    
-                                    return '';
+                                    return (minute >= 58 || minute <= 2) ? `${hour}:00` : '';
                                 }
                             },
                             offset: true,
@@ -425,13 +374,9 @@
                         }
                     },
                     plugins: {
-                        legend: {
-                            display: false
-                        },
+                        legend: { display: false },
                         annotation: {
-                            common: {
-                                drawTime: 'beforeDatasetsDraw'
-                            },
+                            common: { drawTime: 'beforeDatasetsDraw' },
                             annotations: {
                                 rangoOptimo: {
                                     type: 'box',
@@ -447,29 +392,17 @@
                     }
                 }
             });
-            
-            // console.log('Gráfico inicializado:', glucoseChart);
         }
 
         function updateGraphView() {
-            if (!glucoseChart || !allGlucoseData) {
-                console.log('No hay gráfico o datos:', { chart: !!glucoseChart, data: !!allGlucoseData });
-                return;
-            }
+            if (!glucoseChart || !allGlucoseData) return;
 
             const visibleData = allGlucoseData.slice(viewStartIndex, viewStartIndex + POINTS_TO_SHOW);
-            // console.log('Datos visibles (raw):', JSON.stringify(visibleData, null, 2));
-            
-            if (visibleData.length === 0) {
-                console.log('No hay datos visibles');
-                return;
-            }
+            if (visibleData.length === 0) return;
 
-            // Separar datos en dos arreglos
             const times = [];
             const values = [];
-            
-            // Procesar el primer punto
+
             let lastEntry = null;
             for (let i = 0; i < visibleData.length; i++) {
                 const entry = visibleData[i];
@@ -478,7 +411,6 @@
                 const value = parseInt(entry.value);
                 if (isNaN(value)) continue;
 
-                // Si es el primer punto válido
                 if (!lastEntry) {
                     times.push(entry.time);
                     values.push(value);
@@ -486,52 +418,37 @@
                     continue;
                 }
 
-                // Obtener las horas y minutos del punto actual y el último
                 const [lastHour, lastMinute] = lastEntry.time.split(':').map(Number);
                 const [currentHour, currentMinute] = entry.time.split(':').map(Number);
 
-                // Calcular la diferencia en minutos
                 let minuteDiff = (currentHour - lastHour) * 60 + (currentMinute - lastMinute);
-                if (minuteDiff < 0) minuteDiff += 24 * 60; // Manejar el cambio de día
+                if (minuteDiff < 0) minuteDiff += 24 * 60;
 
-                // Si hay un hueco mayor a 5 minutos, agregar puntos de tiempo intermedios sin valor
                 if (minuteDiff > 5) {
                     const steps = Math.floor(minuteDiff / 5);
-
                     for (let step = 1; step < steps; step++) {
                         const interpolatedMinutes = (lastMinute + step * 5) % 60;
                         const interpolatedHours = lastHour + Math.floor((lastMinute + step * 5) / 60);
-                        const interpolatedTime = `${String(interpolatedHours).padStart(2, '0')}:${String(interpolatedMinutes).padStart(2, '0')}`;
-
+                        const interpolatedTime = `${String(interpolatedHours).padStart(2,'0')}:${String(interpolatedMinutes).padStart(2,'0')}`;
                         times.push(interpolatedTime);
-                        values.push(null); // Usar null para indicar que no hay valor
+                        values.push(null);
                     }
                 }
 
-                // Agregar el punto actual
                 times.push(entry.time);
                 values.push(value);
                 lastEntry = entry;
             }
 
-            // console.log('Tiempos procesados (con huecos):', times);
-            // console.log('Valores procesados (con huecos):', values);
+            if (times.length === 0 || values.length === 0) return;
 
-            if (times.length === 0 || values.length === 0) {
-                console.log('No hay datos válidos para mostrar');
-                return;
-            }
-
-            // Calcular promedio (solo de valores válidos)
             const validValues = values.filter(v => v !== null);
-            const average = validValues.reduce((a, b) => a + b, 0) / validValues.length;
-            document.getElementById('graphAvg').textContent = `Promedio: ${Math.round(average)} mg/dL`;
+            const avgText = validValues.length ? `Promedio: ${Math.round(validValues.reduce((a,b)=>a+b,0)/validValues.length)} mg/dL` : 'Promedio: -- mg/dL';
+            document.getElementById('graphAvg').textContent = avgText;
 
-            // Actualizar el gráfico
             glucoseChart.data.labels = times;
             glucoseChart.data.datasets[0].data = values;
 
-            // Actualizar las anotaciones con los marcadores visibles
             const annotations = {
                 rangoOptimo: {
                     type: 'box',
@@ -543,57 +460,51 @@
                     drawTime: 'beforeDatasetsDraw'
                 }
             };
-            
+
             if (patientMarkers && patientMarkers.length > 0) {
-                // Obtener el rango de tiempo visible
                 const firstVisibleTime = times[0];
                 const lastVisibleTime = times[times.length - 1];
-                
-                // Convertir tiempos a minutos para comparación
+
                 const getMinutes = (timeStr) => {
                     const [hours, minutes] = timeStr.split(':').map(Number);
                     return hours * 60 + minutes;
                 };
-                
+
                 const firstMinutes = getMinutes(firstVisibleTime);
                 const lastMinutes = getMinutes(lastVisibleTime);
-                
-                // Crear un mapa de tiempos válidos (donde hay datos de glucosa)
+
                 const validTimes = new Set(times);
-                
+
                 patientMarkers.forEach((marker, index) => {
                     const markerMinutes = getMinutes(marker.time);
-                    
-                    // Manejar el caso cuando el rango cruza la medianoche
+
                     let isInRange = false;
                     if (firstMinutes <= lastMinutes) {
                         isInRange = markerMinutes >= firstMinutes && markerMinutes <= lastMinutes;
                     } else {
                         isInRange = markerMinutes >= firstMinutes || markerMinutes <= lastMinutes;
                     }
-                    
+
                     if (isInRange) {
-                        // Si el tiempo del marcador no existe en los datos de glucosa,
-                        // encontrar el tiempo más cercano
                         let xValue = marker.time;
                         if (!validTimes.has(marker.time)) {
                             let closestTime = marker.time;
                             let minDiff = Infinity;
-                            
+
                             times.forEach(time => {
-                                const timeDiff = Math.abs(getMinutes(time) - markerMinutes);
-                                if (timeDiff < minDiff) {
-                                    minDiff = timeDiff;
+                                const diff = Math.abs(getMinutes(time) - markerMinutes);
+                                if (diff < minDiff) {
+                                    minDiff = diff;
                                     closestTime = time;
                                 }
                             });
-                            
+
                             xValue = closestTime;
                         }
-                        
+
                         annotations[`marker${index}`] = {
                             type: 'point',
-                            xValue: xValue,
+                            xValue,
                             yValue: marker.value,
                             backgroundColor: marker.color,
                             radius: marker.radius || 4,
@@ -605,7 +516,7 @@
                     }
                 });
             }
-            
+
             glucoseChart.options.plugins.annotation.annotations = annotations;
             glucoseChart.update();
         }
@@ -613,34 +524,27 @@
         function updateCalibrationIndicator(timeToCalib, calibrationStatus, sensorStatus) {
             const circle = document.getElementById('calibrationCircle');
             const drop = document.getElementById('calibrationDrop');
-            
-            // Limpiar clases anteriores
+
             drop.className = 'calibration-drop';
             circle.className = 'calibration-circle';
-            
+
             if (timeToCalib === 255 || calibrationStatus === "UNKNOWN") {
-                // unknown - círculo azul completo con signo de interrogación
                 circle.style.transform = 'translate(-50%, -50%)';
                 circle.style.borderColor = '#00cccc';
                 drop.classList.add('drop-unk');
             } else if (timeToCalib >= 12) {
-                // círculo verde completo con gota blanca
                 circle.style.transform = 'translate(-50%, -50%)';
                 circle.style.borderColor = '#33cc00';
                 drop.classList.add('drop-white');
             } else if (timeToCalib > 0) {
-                // Calcular el ángulo basado en el tiempo restante
                 const degrees = (timeToCalib / 12) * 360;
-                
-                // Establecer el color basado en el tiempo restante
+
                 circle.style.borderColor = timeToCalib > 3 ? '#33cc00' : '#ff0000';
                 drop.classList.add('drop-white');
 
-                // Rotar -90 grados para empezar desde las 12
                 circle.style.transform = 'translate(-50%, -50%) rotate(-90deg)';
-                
+
                 if (degrees <= 180) {
-                    // Primera mitad del círculo
                     circle.classList.add('right');
                     circle.style.clip = 'rect(0, 14px, 28px, 0)';
                     const rightHalf = document.createElement('div');
@@ -650,7 +554,6 @@
                     rightHalf.style.clip = 'rect(0, 28px, 28px, 14px)';
                     circle.parentNode.insertBefore(rightHalf, circle.nextSibling);
                 } else {
-                    // Segunda mitad del círculo
                     circle.classList.add('left');
                     circle.style.clip = 'rect(0, 28px, 28px, 14px)';
                     const leftHalf = document.createElement('div');
@@ -660,109 +563,111 @@
                     leftHalf.style.clip = 'rect(0, 14px, 28px, 0)';
                     circle.parentNode.insertBefore(leftHalf, circle);
                 }
-                
-                console.log("Tiempo para calibrar:", timeToCalib, "horas, grados:", degrees);
             } else {
                 if (sensorStatus === "CALIBRATION_REQUIRED") {
-                    // sin círculo, gota roja
                     circle.style.transform = 'translate(-50%, -50%)';
                     circle.style.borderColor = 'transparent';
                     drop.classList.add('drop-red');
                 } else {
-                    // sin círculo, gota blanca
                     circle.style.transform = 'translate(-50%, -50%)';
                     circle.style.borderColor = 'transparent';
                     drop.classList.add('drop-white');
                 }
             }
 
-            // Limpiar círculos adicionales anteriores
             const oldCircles = document.querySelectorAll('.calibration-circle:not(#calibrationCircle)');
             oldCircles.forEach(oldCircle => oldCircle.remove());
         }
 
         function updatePumpData() {
-            // Obtener datos principales
+            // Datos principales
             fetch('/api/pump-data')
                 .then(response => response.json())
                 .then(data => {
-                    // Update glucose value
                     document.getElementById('glucoseValue').textContent = data.glucose;
 
-                    // Actualizar el indicador de calibración
                     updateCalibrationIndicator(data.time_to_calib, data.calibration_status, data.sensor_status);
 
-                    // Determinar el tipo de escudo basado en la tendencia
-                    const glucoseTrend = data.trend;
+                    const glucoseTrend = data.trend || 'none';
                     document.getElementById('shieldImage').src = `/static/res/mm_shield_${glucoseTrend}.png`;
 
-                    if (data.reservoir > 150){
-                        img_lvl = 200  // green
-                    } else if (data.reservoir > 80){
-                        img_lvl = 150  // yellow
-                    } else if (data.reservoir > 1){
-                        img_lvl = 50   // red
-                    } else {   
-                        img_lvl = 0    // empty 
+                    // Nivel del reservorio → ícono
+                    let img_lvl = 0;
+                    if (data.reservoir > 150) {
+                        img_lvl = 200; // verde
+                    } else if (data.reservoir > 80) {
+                        img_lvl = 150; // amarillo
+                    } else if (data.reservoir > 1) {
+                        img_lvl = 50;  // rojo
+                    } else {
+                        img_lvl = 0;   // empty
                     }
 
-                    // Update status icons
+                    // Íconos de status
                     document.getElementById('batteryIcon').src = `/static/res/mm_batt${data.battery}.png`;
                     document.getElementById('reservoirIcon').src = `/static/res/mm_tank${img_lvl}.png`;
                     document.getElementById('sensorConnIcon').src = `/static/res/mm_sensor_connection_${data.sensor_connection ? 'ok' : 'nok'}.png`;
                     document.getElementById('sensorAgeIcon').src = `/static/res/mm_sage_${data.sensor_age ? 'green' : 'unk'}.png`;
-                    
-                    // Update text values
+
+                    // Textos
                     document.getElementById('lastUpdate').textContent = data.last_update;
                     document.getElementById('sensorAgeText').textContent = data.sensor_age;
                     document.getElementById('activeInsulin').textContent = data.active_insulin;
                     document.getElementById('lastUpdateText').textContent = data.time_ago;
+
+                    // --- Banner de estado (objetivo temporal, suspend, etc.) ---
+                    const bannerEl = document.getElementById('pumpBanner');
+                    const bannerMap = {
+                        'temp_target': 'mm_banner_temp_target.png',
+                        'delivery_suspend': 'mm_banner_delivery_suspend.png'
+                        // agrega más si tienes: 'exercise_mode': 'mm_banner_exercise.png'
+                    };
+                    const rawBanner = (data.banner_state || '').toString();
+                    const key = rawBanner.trim().toLowerCase().replace(/\s+/g, '_').replace(/-/g, '_');
+                    if (key && bannerMap[key]) {
+                        bannerEl.src = `/static/res/${bannerMap[key]}`;
+                        bannerEl.style.display = 'block';
+                    } else {
+                        bannerEl.style.display = 'none';
+                    }
                 })
                 .catch(error => console.error('Error:', error));
 
-            // Obtener datos del gráfico
+            // Datos del gráfico
             fetch('/api/pump-graph-data')
                 .then(response => response.json())
                 .then(data => {
-                    allGlucoseData = data.glucose_history;
+                    allGlucoseData = data.glucose_history || [];
                     patientMarkers = data.markers || [];
-                    // Iniciar la vista en los datos más recientes
                     viewStartIndex = Math.max(0, allGlucoseData.length - POINTS_TO_SHOW);
-                    // console.log("patientMarkers -> ", patientMarkers);
                     updateGraphView();
                 })
                 .catch(error => console.error('Error:', error));
         }
 
-        // Inicializar el gráfico antes de cualquier actualización
+        // Inicializar
         document.addEventListener('DOMContentLoaded', function() {
             initializeChart();
             updatePumpData();
-            // Update data every 60 seconds
             setInterval(updatePumpData, 60000);
         });
 
-        // Configuración del slider principal
+        // Slider principal (touch)
         let currentSlide = 0;
         const slider = document.querySelector('.slider-wrapper');
         const dots = document.querySelectorAll('.dot');
         let startX = 0;
-        let currentX = 0;
 
-        // Manejadores de eventos táctiles para el slider principal
         slider.addEventListener('touchstart', (e) => {
             startX = e.touches[0].clientX;
-            currentX = startX;
             slider.style.transition = 'none';
         });
 
         slider.addEventListener('touchmove', (e) => {
             if (startX === 0) return;
-            
             const touch = e.touches[0];
             const diff = touch.clientX - startX;
             const translateX = -currentSlide * 100 + (diff / window.innerWidth * 100);
-            
             if (translateX <= 0 && translateX >= -100) {
                 slider.style.transform = `translateX(${translateX}vw)`;
             }
@@ -771,17 +676,11 @@
         slider.addEventListener('touchend', (e) => {
             const diff = e.changedTouches[0].clientX - startX;
             const threshold = window.innerWidth * 0.2;
-
             slider.style.transition = 'transform 0.3s ease-out';
-
             if (Math.abs(diff) > threshold) {
-                if (diff > 0 && currentSlide > 0) {
-                    currentSlide--;
-                } else if (diff < 0 && currentSlide < 1) {
-                    currentSlide++;
-                }
+                if (diff > 0 && currentSlide > 0) currentSlide--;
+                else if (diff < 0 && currentSlide < 1) currentSlide++;
             }
-
             slider.style.transform = `translateX(${-currentSlide * 100}vw)`;
             updateDots();
             startX = 0;
@@ -793,7 +692,7 @@
             });
         }
 
-        // Manejadores de eventos táctiles para el gráfico
+        // Gestos sobre el gráfico
         let graphStartX = 0;
         let graphLastX = 0;
         let graphVelocity = 0;
@@ -807,55 +706,45 @@
             lastTime = Date.now();
             graphVelocity = 0;
             isGraphDragging = true;
-            e.stopPropagation(); // Detener la propagación al slider
+            e.stopPropagation();
         });
 
         graph.addEventListener('touchmove', (e) => {
             if (!isGraphDragging) return;
-            
             const currentX = e.touches[0].clientX;
             const currentTime = Date.now();
             const timeDiff = currentTime - lastTime;
-            
-            if (timeDiff > 0) {
-                graphVelocity = (currentX - graphLastX) / timeDiff;
-            }
-            
+            if (timeDiff > 0) graphVelocity = (currentX - graphLastX) / timeDiff;
+
             const diff = currentX - graphLastX;
             const pointsToMove = diff * 0.1;
-            
             viewStartIndex = Math.max(0, Math.min(
                 allGlucoseData.length - POINTS_TO_SHOW,
                 viewStartIndex - pointsToMove
             ));
-            
             updateGraphView();
-            
+
             graphLastX = currentX;
             lastTime = currentTime;
-            e.stopPropagation(); // Detener la propagación al slider
+            e.stopPropagation();
         });
 
         graph.addEventListener('touchend', (e) => {
             if (!isGraphDragging) return;
-
             const endX = e.changedTouches[0].clientX;
             const totalDiff = endX - graphStartX;
             const swipeVelocity = Math.abs(graphVelocity);
-            
-            // Solo cambiar a la vista del escudo si el swipe es muy rápido y largo hacia la derecha
             if (swipeVelocity > 1.5 && totalDiff > window.innerWidth * 0.4) {
                 currentSlide = 0;
                 slider.style.transition = 'transform 0.3s ease-out';
-                slider.style.transform = `translateX(0)`;
+                slider.style.transform = 'translateX(0)';
                 updateDots();
             }
-            
             isGraphDragging = false;
             graphStartX = 0;
             graphVelocity = 0;
-            e.stopPropagation(); // Detener la propagación al slider
+            e.stopPropagation();
         });
     </script>
 </body>
-</html> 
+</html>
