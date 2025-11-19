@@ -14,6 +14,33 @@ import socket
 # import carelink_client2_proxy - se importará dinámicamente para evitar ejecución automática
 import carelink_client2
 
+# --- INICIO: FUNCIÓN DE PERSISTENCIA CRÍTICA (AÑADIDA) ---
+def setup_logindata_persistence():
+    """Lee el JSON de login desde una variable de entorno de Render y lo guarda localmente."""
+    # El nombre de la variable de entorno que usaremos en Render
+    CARELINK_JSON_ENV = os.environ.get('CARELINK_LOGIN_JSON')
+    
+    # Si la variable de entorno existe Y el archivo logindata.json NO existe localmente
+    if CARELINK_JSON_ENV and not os.path.exists('data/logindata.json'):
+        print("INFO: Creando data/logindata.json desde la Variable de Entorno...")
+        
+        # 1. Asegurar que el directorio 'data' exista
+        if not os.path.exists('data'):
+            os.makedirs('data')
+            
+        # 2. Escribir el contenido JSON en el archivo
+        try:
+            # Escribe el JSON de la variable de entorno en el disco temporal de Render
+            with open('data/logindata.json', 'w') as f:
+                f.write(CARELINK_JSON_ENV)
+            print("INFO: data/logindata.json creado con éxito. Token persistente.")
+        except Exception as e:
+            print(f"ERROR: No se pudo crear data/logindata.json: {e}")
+            pass
+
+# --- FIN: FUNCIÓN DE PERSISTENCIA CRÍTICA ---
+
+
 # Definir estados
 STATUS_INIT = "STATUS_INIT"
 STATUS_DO_LOGIN = "STATUS_DO_LOGIN" 
@@ -58,9 +85,9 @@ proxy_process = None
 # The signal handler for the TERM signal
 #################################################
 def on_sigterm(signum, frame):
-   # TODO: cleanup (if any)
-   log.debug("Exiting in sigterm")
-   sys.exit()
+    # TODO: cleanup (if any)
+    log.debug("Exiting in sigterm")
+    sys.exit()
 
 #################################################
 # Funciones para gestión del proceso proxy
@@ -501,7 +528,12 @@ if __name__ == '__main__':
     
     log.info("Starting MiniMed Monitor Web with Carelink Client Proxy integration")
     
-    # Check if proxy server is already running
+    # --- LLAMADA CRÍTICA A LA FUNCIÓN DE PERSISTENCIA (Paso 1) ---
+    # Esto creará data/logindata.json a partir de la variable de entorno de Render.
+    setup_logindata_persistence()
+    # -----------------------------------------------------------
+
+    # Check if proxy server is already running (Paso 2)
     if is_proxy_running():
         log.info("Servidor proxy ya está ejecutándose en puerto 8081")
     else:
@@ -509,23 +541,21 @@ if __name__ == '__main__':
         if not start_proxy():
             log.info("Continuando sin servidor proxy...")
     
-    # Start the Carelink client thread
+    # Start the Carelink client thread (Paso 3)
     log.info("Iniciando cliente Carelink...")
     carelink_thread = threading.Thread(target=carelink_client_thread, daemon=True)
     carelink_thread.start()
     
-    # Start the background thread for data collection
+    # Start the background thread for data collection (Paso 4)
     log.info("Iniciando recolección de datos...")
     data_thread = threading.Thread(target=get_pump_data, daemon=True)
     data_thread.start()
     
-  # Define el puerto usando la variable de entorno de Render (o 5001 por defecto)
-port = int(os.environ.get("PORT", 5001))
+    # Define el puerto usando la variable de entorno de Render (o 5001 por defecto) (Paso 5)
+    port = int(os.environ.get("PORT", 5001))
 
-# Log de inicio
-log.info(f"Iniciando servidor Flask en puerto {port}...")
+    # Log de inicio
+    log.info(f"Iniciando servidor Flask en puerto {port}...")
 
-# Ejecutar la app
-app.run(host='0.0.0.0', port=port, debug=False, use_reloader=False)
-
-    
+    # Ejecutar la app (Paso 6)
+    app.run(host='0.0.0.0', port=port, debug=False, use_reloader=False)
