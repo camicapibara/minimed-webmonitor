@@ -521,19 +521,23 @@ def login():
     
     return render_template('login.html', logindata_content=logindata_content)
 
-if __name__ == '__main__':
-    # Configurar logging
+# ... (Todo el código anterior es el mismo)
+
+# --- DEFINIR FUNCIÓN DE INICIO DE THREADS ---
+def init_background_services():
+    """Inicializa la persistencia de token, proxy y threads."""
+    
+    # --- LLAMADA CRÍTICA A LA FUNCIÓN DE PERSISTENCIA ---
+    setup_logindata_persistence()
+    # ---------------------------------------------------
+
+    # Configurar logging (opcional, pero deja el FORMAT afuera si falla)
     FORMAT = '[%(asctime)s:%(levelname)s] %(message)s'
     log.basicConfig(format=FORMAT, datefmt='%Y-%m-%d %H:%M:%S', level=log.INFO)
     
     log.info("Starting MiniMed Monitor Web with Carelink Client Proxy integration")
     
-    # --- LLAMADA CRÍTICA A LA FUNCIÓN DE PERSISTENCIA (Paso 1) ---
-    # Esto creará data/logindata.json a partir de la variable de entorno de Render.
-    setup_logindata_persistence()
-    # -----------------------------------------------------------
-
-    # Check if proxy server is already running (Paso 2)
+    # Check if proxy server is already running
     if is_proxy_running():
         log.info("Servidor proxy ya está ejecutándose en puerto 8081")
     else:
@@ -541,21 +545,25 @@ if __name__ == '__main__':
         if not start_proxy():
             log.info("Continuando sin servidor proxy...")
     
-    # Start the Carelink client thread (Paso 3)
+    # Start the Carelink client thread
     log.info("Iniciando cliente Carelink...")
     carelink_thread = threading.Thread(target=carelink_client_thread, daemon=True)
     carelink_thread.start()
     
-    # Start the background thread for data collection (Paso 4)
+    # Start the background thread for data collection
     log.info("Iniciando recolección de datos...")
     data_thread = threading.Thread(target=get_pump_data, daemon=True)
     data_thread.start()
     
-    # Define el puerto usando la variable de entorno de Render (o 5001 por defecto) (Paso 5)
+# --- LLAMADA DE INICIO DE SERVICIOS (Ejecutar al cargar el módulo) ---
+# Llama a la función justo después de su definición para que Gunicorn la ejecute.
+init_background_services() 
+# -------------------------------------------------------------------
+
+
+# El bloque if __name__ == '__main__': ahora solo manejará el servidor local
+if __name__ == '__main__':
+    # Define el puerto usando la variable de entorno de Render (o 5001 por defecto)
     port = int(os.environ.get("PORT", 5001))
-
-    # Log de inicio
     log.info(f"Iniciando servidor Flask en puerto {port}...")
-
-    # Ejecutar la app (Paso 6)
     app.run(host='0.0.0.0', port=port, debug=False, use_reloader=False)
